@@ -1,0 +1,224 @@
+{
+  "name": "veille llm",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        752,
+        208
+      ],
+      "id": "9dd8c590-6c55-4e30-8632-56c186fe7baa",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1478756314552467568/FjTSv7G9ROjhmWhJe7yO4LcI0Yi8Ex6vmqX7C3LTKZMetUh7JClAyRPreo5Bw_5glohZ",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "embeds",
+              "value": "={{ $json.embeds }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1952,
+        208
+      ],
+      "id": "dce558d1-71a4-4b9f-8920-162dbbb20fd1",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "resource": "search",
+        "operation": "query"
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        960,
+        208
+      ],
+      "id": "b15a5522-dbc0-4d0c-93ef-23736f7605c2",
+      "name": "Search",
+      "credentials": {
+        "tavilyApi": {
+          "id": "LJZ0PpM7bOsH5lsZ",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tu es un expert en veille technologique spécialisé en IA.\nVoici des articles trouvés sur internet aujourd'hui :\n\n{{ $json.results }}\n\nStructure ces informations en JSON valide uniquement :\n[\n  {\n    \"titre\": \"{{ $json.embeds[0].title }}\",\n    \"resume\": \"{{ $json.embeds[0].description }}\",\n    \"lien\": \"{{ $json.embeds[0].url }}..\",\n    \"date\": \"{{ $now.toFormat('yyyy-MM-dd') }}\",\n    \"importance\": \"une valeur parmi : haute, moyenne, faible\"\n  }\n]\n\nIMPORTANT : Réponds UNIQUEMENT avec le JSON.\nAucun texte avant, aucun texte après.\nCommence directement par [ et termine par ]",
+        "batching": {
+          "batchSize": null
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1408,
+        208
+      ],
+      "id": "344245b2-e24d-4899-9d94-c3b814960626",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        448
+      ],
+      "id": "015e5552-65e2-4c88-bdd2-67175369afeb",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "SPlfKPAbtvNtv4V2",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access the input from the previous node\nconst raw = $input.first().json.text; \n\n// Extract the JSON array from the text using regex\nconst match = raw.match(/\\[[\\s\\S]*\\]/);\nif (!match) throw new Error(\"Pas de JSON trouvé\");\n\nconst articles = JSON.parse(match[0]);\n\n// Return the formatted items for the Discord/HTTP node\nreturn articles.map(article => ({\n  json: {\n    embeds: [{\n      // Added backticks here to make this a valid Template Literal\n      title: `[${article.importance.toUpperCase()}] ${article.titre}`,\n      url: article.lien,\n      description: article.resume,\n      color: article.importance === 'haute' ? 15158332 : \n             article.importance === 'moyenne' ? 16776960 : 3447003,\n      footer: { text: article.date }\n    }]\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        208
+      ],
+      "id": "4b1165ee-6f14-4bef-943c-ef8c687c23df",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access the search results array from the Search node\nconst results = $input.first().json.results;\n\nif (!results || !Array.isArray(results)) {\n  throw new Error(\"No search results found to process.\");\n}\n\n// Map the search results to the Discord embed format\nreturn results.map(item => ({\n  json: {\n    embeds: [{\n      // Added backticks and updated keys to match Tavily output\n      title: `[SEARCH] ${item.title}`,\n      url: item.url,\n      description: item.content.substring(0, 1000), // Limit length for Discord\n      color: 3447003, // Default blue color\n      footer: { text: `Source: Tavily Search` }\n    }]\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        208
+      ],
+      "id": "c9288627-4411-4731-8afa-0dc52abf9c46",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "Search": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d46b77cd-1ce1-4217-8e81-c4edd41101e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19206e1af97bb85a42ff5f102840d379b5070a396866d564e8a9fcaa9f2d0543"
+  },
+  "id": "4m4sJgSWfbqQuHQk",
+  "tags": []
+}
