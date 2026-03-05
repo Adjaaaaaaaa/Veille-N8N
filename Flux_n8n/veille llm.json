@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://discord.com/api/webhooks/1478756314552467568/FjTSv7G9ROjhmWhJe7yO4LcI0Yi8Ex6vmqX7C3LTKZMetUh7JClAyRPreo5Bw_5glohZ",
+        "url": "VOTRE_WEBHOOK_ICI",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
